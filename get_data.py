@@ -56,7 +56,7 @@ def get_shooting_data():
                         data.append('Na' if stat.text == '' else stat.text)
                 extracted_data.append(data)
                 # delay before the next request
-                time.sleep(5)
+                time.sleep(10)
 
             else:
                 print(f'Failed to retrieve the web page for URL: {url}')
