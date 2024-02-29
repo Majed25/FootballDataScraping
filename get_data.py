@@ -35,6 +35,7 @@ def get_shooting_data():
         shooting_schema = {name: info for name, info in zip(table_header, columns_info)}
         # extract the tables
         for url in urls:
+            print(f'sraping  {url}')
             if response.status_code == 200:
                 response = requests.get(url)
                 soup = BeautifulSoup(response.content, 'html.parser')
@@ -48,14 +49,14 @@ def get_shooting_data():
                 rows = table_body.find_all('tr')
                 data = []
                 # get the data values from the first element being a th and the following being td
-                for row in rows[:1]:
+                for row in rows:
                     stats = row.find_all(['th', 'td'])
                     for stat in stats:
                         # handling Na values
                         data.append('Na' if stat.text == '' else stat.text)
                 extracted_data.append(data)
                 # delay before the next request
-                time.sleep(10)
+                time.sleep(5)
 
             else:
                 print(f'Failed to retrieve the web page for URL: {url}')
