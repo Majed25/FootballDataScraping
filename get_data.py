@@ -11,7 +11,7 @@ import json
 # https://fbref.com/en/comps/Big5/2022-2023/shooting/2022-2023-Big-5-European-Leagues-Stats
 
 # URls Collection for Shooting data
-def get_shooting_data_1():
+def get_shooting_data():
     cur_yr = 2024
     urls = ["https://fbref.com/en/comps/Big5/shooting/players/Big-5-European-Leagues-Stats"]
     for i in range(14):
@@ -58,7 +58,7 @@ def get_shooting_data_1():
                 extracted_data.append(data)
 
             # store data
-            file_path = f'data/shooting_data{i}.csv'
+            file_path = f'temp_data/shooting_data{i}.csv'
             directory = os.path.dirname(file_path)
             if not os.path.exists(directory):
                 os.makedirs(directory)
@@ -80,7 +80,7 @@ def get_shooting_data_1():
 
 
             #store schema
-            file_path = f'data/shooting_schema{i}.json'
+            file_path = f'temp_data/shooting_schema{i}.json'
             with open(file_path, 'w', newline='') as json_file:
                 json.dump(shooting_schema, json_file, indent=2)
 
