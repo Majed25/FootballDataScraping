@@ -7,17 +7,17 @@ import shutil
 
 file_paths = glob.glob('temp_data/*.csv')
 schema_paths = glob.glob('temp_data/*.json')
-path1 = 'shooting_data/sd_17_24.csv'
-path2 = 'shooting_data/sd_09_10.csv'
-schema_path1 = 'shooting_data/sd_17_24_schema.json'
-schema_path2 = 'shooting_data/sd_09_10_schema.json'
 
-# store data
-for path in [path1, path2, schema_path1, schema_path2]:
-    directory = os.path.dirname(path)
-    os.makedirs(directory, exist_ok=True)
 
 def merge_shooting_data():
+    path1 = 'shooting_data/sd_17_24.csv'
+    path2 = 'shooting_data/sd_09_10.csv'
+    schema_path1 = 'shooting_data/sd_17_24_schema.json'
+    schema_path2 = 'shooting_data/sd_09_10_schema.json'
+    for path in [path1, path2, schema_path1, schema_path2]:
+        directory = os.path.dirname(path)
+        os.makedirs(directory, exist_ok=True)
+
     # initiate a tracker to avoid adding headers multiple times
     i, j = (0, 0)
     # open two files for each data tranche
@@ -71,10 +71,45 @@ def merge_shooting_data():
             else:
                 print(f'inconsistent schema {dict}')
 
-# clear temp data
-shutil.rmtree('temp_data/')
-os.makedirs('temp_data/')
+    # clear temp data
+    shutil.rmtree('temp_data/')
+    os.makedirs('temp_data/')
 
+
+def merge_defensive_data():
+    my_path = 'defensive_data/dd_2009_2024.csv'
+    schema_path = 'defensive_data/dd_2009_2024_schema.json'
+    for p in [my_path, schema_path]:
+        directory = os.path.dirname(p)
+        os.makedirs(directory, exist_ok=True)
+
+    # initiate a tracker to avoid adding headers multiple times
+    i = 0
+    with open(my_path, 'a', newline='') as d:
+        csv_writer = csv.writer(d)
+        for file in file_paths:
+            with open(file, 'r') as f:
+                csv_reader = csv.reader(f)
+                header = next(csv_reader, [])
+                header_len = len(header)
+                if i == 0:
+                    csv_writer.writerow(header)
+                for row in csv_reader:
+                    if len(row) != len(header):
+                        print('error')
+                    else:
+                        csv_writer.writerow(row)
+                i += 1
+
+    # merge schemas
+    with open(schema_paths[0], 'r') as json_file:
+        dict = json.load(json_file)
+        with open(schema_path, 'w', newline='') as json_file:
+            json.dump(dict, json_file, indent=2)
+
+    # clear temp data
+    shutil.rmtree('temp_data/')
+    os.makedirs('temp_data/')
 
 
 
