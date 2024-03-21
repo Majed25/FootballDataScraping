@@ -112,6 +112,65 @@ def merge_defensive_data():
     os.makedirs('temp_data/')
 
 
+def merge_opp_pass_data():
+    my_path = 'opp_pass_data/opd_2009_2024.csv'
+    schema_path = 'opp_pass_data/opd_2009_2024_schema.json'
+    for p in [my_path, schema_path]:
+        directory = os.path.dirname(p)
+        os.makedirs(directory, exist_ok=True)
+
+    # initiate a tracker to avoid adding headers multiple times
+    i = 0
+    with open(my_path, 'a', newline='') as d:
+        csv_writer = csv.writer(d)
+        for file in file_paths:
+            with open(file, 'r') as f:
+                csv_reader = csv.reader(f)
+                header = next(csv_reader, [])
+                header_len = len(header)
+                if i == 0:
+                    csv_writer.writerow(header)
+                for row in csv_reader:
+                    if len(row) != len(header):
+                        print('error')
+                    else:
+                        csv_writer.writerow(row)
+                i += 1
+
+    # merge schemas
+    with open(schema_paths[0], 'r') as json_file:
+        dict = json.load(json_file)
+        with open(schema_path, 'w', newline='') as json_file:
+            json.dump(dict, json_file, indent=2)
+
+    # clear temp data
+    shutil.rmtree('temp_data/')
+    os.makedirs('temp_data/')
 
 
+def merge_transfers_data():
+    path = 'transfer_data/trd_2009_2024.csv'
+    directory = os.path.dirname(path)
+    os.makedirs(directory, exist_ok=True)
 
+    # initiate a tracker to avoid adding headers multiple times
+    i = 0
+    with open(path, 'a', newline='') as d:
+        csv_writer = csv.writer(d)
+        for file in file_paths:
+            with open(file, 'r') as f:
+                csv_reader = csv.reader(f)
+                header = next(csv_reader, [])
+                header_len = len(header)
+                if i == 0:
+                    csv_writer.writerow(header)
+                for row in csv_reader:
+                    if len(row) != len(header):
+                        print('error')
+                    else:
+                        csv_writer.writerow(row)
+                i += 1
+
+    # clear temp data
+    shutil.rmtree('temp_data/')
+    os.makedirs('temp_data/')
