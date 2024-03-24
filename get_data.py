@@ -251,22 +251,5 @@ def get_opponent_passing():
 
 
 
-def get_transfers():
-    HEADERS = {
-        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-        'accept-encoding': 'gzip, deflate, br',
-        'accept-language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-        'upgrade-insecure-requests': '1',
-        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Safari/605.1.15'
-    }
-
-    session = requests.session()
-    session.headers.update(HEADERS)
-    URL_LEAGUE = 'https://www.transfermarkt.com/premier-league/transfers/wettbewerb/GB1/plus/?saison_id=2022&s_w=&leihe=1&intern=0&intern=1'
-    response = requests.get(URL_LEAGUE, headers=HEADERS)
-    print(URL_LEAGUE)
-    print(response.status_code)
-
-
 
 

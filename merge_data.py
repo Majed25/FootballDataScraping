@@ -4,6 +4,8 @@ import os
 import json
 import shutil
 
+# Script to Merge the separate data tables into one file.
+
 
 file_paths = glob.glob('temp_data/*.csv')
 schema_paths = glob.glob('temp_data/*.json')
@@ -111,7 +113,7 @@ def merge_defensive_data():
     shutil.rmtree('temp_data/')
     os.makedirs('temp_data/')
 
-
+# merge opposition passes data
 def merge_opp_pass_data():
     my_path = 'opp_pass_data/opd_2009_2024.csv'
     schema_path = 'opp_pass_data/opd_2009_2024_schema.json'
@@ -148,29 +150,48 @@ def merge_opp_pass_data():
     os.makedirs('temp_data/')
 
 
+# merge transfers_ data
 def merge_transfers_data():
-    path = 'transfer_data/trd_2009_2024.csv'
-    directory = os.path.dirname(path)
-    os.makedirs(directory, exist_ok=True)
+    if are_headers_similar():
+        path = 'transfers_data/trd_2009_2024.csv'
+        directory = os.path.dirname(path)
+        os.makedirs(directory, exist_ok=True)
 
-    # initiate a tracker to avoid adding headers multiple times
-    i = 0
-    with open(path, 'a', newline='') as d:
-        csv_writer = csv.writer(d)
-        for file in file_paths:
-            with open(file, 'r') as f:
-                csv_reader = csv.reader(f)
-                header = next(csv_reader, [])
-                header_len = len(header)
-                if i == 0:
-                    csv_writer.writerow(header)
-                for row in csv_reader:
-                    if len(row) != len(header):
-                        print('error')
-                    else:
-                        csv_writer.writerow(row)
-                i += 1
+        # initiate a tracker to avoid adding headers multiple times
+        i = 0
+        with open(path, 'a', newline='') as d:
+            csv_writer = csv.writer(d)
+            for file in file_paths:
+                with open(file, 'r') as f:
+                    csv_reader = csv.reader(f)
+                    header = next(csv_reader, [])
+                    header_len = len(header)
+                    if i == 0:
+                        csv_writer.writerow(header)
+                    for row in csv_reader:
+                        if len(row) != len(header):
+                            print('error')
+                        else:
+                            csv_writer.writerow(row)
+                    i += 1
 
-    # clear temp data
-    shutil.rmtree('temp_data/')
-    os.makedirs('temp_data/')
+        # clear temp data
+        shutil.rmtree('temp_data/')
+        os.makedirs('temp_data/')
+
+
+def are_headers_similar():
+    #get headers
+    headers = []
+    for f in file_paths:
+        with open(f, 'r', newline='') as csvfile:
+            reader = csv.reader(csvfile)
+            #read the first row which is the header
+            header = next(reader)
+            headers.append(header)
+    # compare headers
+    result = True
+    for header in headers[1:]:
+        if header != headers[0]:
+            result = False
+    return result

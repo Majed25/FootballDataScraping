@@ -1,0 +1,23 @@
+{
+  "Rk": "Rk",
+  "Player": "Player",
+  "Nation": "Nation",
+  "Pos": "Position",
+  "Squad": "Squad",
+  "Comp": "Competition",
+  "Age": "Age",
+  "Born": "Year of birth",
+  "90s": "90s Played",
+  "Gls": "Goals",
+  "Sh": "Shots Total",
+  "SoT": "Shots on Target",
+  "SoT%": "Shots on Target %",
+  "Sh/90": "Shots Total/90",
+  "SoT/90": "Shots on target/90",
+  "G/Sh": "Goals/Shot",
+  "G/SoT": "Goals/Shot on Target",
+  "Dist": "Average Shot Distance",
+  "PK": "Penalty Kicks Made",
+  "PKatt": "Penalty Kicks Attempted",
+  "Matches": "Matches"
+}

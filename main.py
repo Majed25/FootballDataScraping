@@ -1,12 +1,14 @@
 from get_data import *
 from merge_data import *
+from scrape_transfers import *
 
 def main():
-    #get_shooting_data()
-    #merge_shooting_data()
-    #get_opponent_passing()
-    #merge_opp_pass_data()
-    get_transfers()
+    get_shooting_data()
+    merge_shooting_data()
+    get_opponent_passing()
+    merge_opp_pass_data()
+    scrape_transfers()
+    merge_transfers_data()
 
 
 
