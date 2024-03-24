@@ -22,25 +22,24 @@ The objective of this project is to scrape football data for analysis, specifica
 1. **Scraping Strikers' Shooting Data**
    - Utilize FBref's shooting data for the Big Five Leagues. 
    - The tables schema is not consistent throughout the seasons so they are separated to two parts (Seasons 09-16 / Seasons 17-24)
-
+   - CSV file stored in "shooting_data/"
 
 2. **Scraping Teams' Defensive Action And opposition passes Data**
    - Obtain defensive actions and opposition actions stats for the 2023-2024 season from FBref. In order to calculate
    - the (Passes per defensive actions allowed) PPDA, which is the number of opposition passes / number of devfensive
    - actions.
+   - Storing data under "defensive_data/" and "opp_pass_data/"
    
-
-3. **Scraping Teams' Goal and Shot Creation Data**
-   - Retrieve goal and shot creation stats for the 2023-2024 season from FBref.
-
-
+   
 4. **Scraping Transfer Data**
    - Start with scraping transfer data for the Premier League from Transfermarkt.
+   - Data stored under "transfers_data/"
 
 
 5. **Optimization and Data Preparation**
    - Add a year/team as a column to the tables help get the appropriate data later when analyzing the data.
    - Check if the tables schemas matching before merging the data.
+   
    
 
 ## Legal Disclaimer
