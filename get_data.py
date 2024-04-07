@@ -27,10 +27,16 @@ def get_shooting_data():
 
     # extract the tables
     i = 0
-    for url in urls[:1]:
+    for url in urls:
         extracted_data = []
         response = requests.get(url)
         if response.status_code == 200:
+            # store the season pattern
+            pattern = re.search(r'/(\d{4}-\d{4})/', url)
+            if pattern:
+                season = pattern.group(1)[-4:]
+            else:
+                season = '2024'
             soup = BeautifulSoup(response.content, 'html.parser')
             # Extract the  Header
             table = soup.find('table', {'id': 'stats_shooting'})
@@ -38,10 +44,12 @@ def get_shooting_data():
             t_header = table.find('thead').find_all('tr')[1]
             columns = t_header.find_all('th')
             columns_info = [column.get('aria-label', None) for column in columns]
+            columns_info.append('season')
             table_header = [column.get_text(strip=True) for column in columns]
+            table_header.append('season')
             # make a dictionary of data names and column info
             shooting_schema = {name: info for name, info in zip(table_header, columns_info)}
-            print(f'sraping  {url}')
+            print(f'scraping  {url}')
 
             # extract the table body
             table = soup.find('table', {'id': 'stats_shooting'})
@@ -59,7 +67,9 @@ def get_shooting_data():
                 for stat in stats:
                     # handling Na values
                     data.append('Na' if stat.text == '' else stat.text)
+                data.append(season)
                 extracted_data.append(data)
+            print(extracted_data)
 
             # store data
             file_path = f'temp_data/shooting_data{i}.csv'
@@ -74,7 +84,7 @@ def get_shooting_data():
                 print(len(table_header))
                 csvwriter.writerow(table_header)
                 # Write the data
-                for row in extracted_data:
+                for row in extracted_data[:2]:
                     if len(row) != len(table_header):
                         print('lengths dont match len(row) len(header)', len(row), len(table_header))
                         break
@@ -91,7 +101,6 @@ def get_shooting_data():
 
         else:
             print(f'Failed to retrieve the web page for URL: {url}')
-
 
 def get_defensive_style():
     urls = ['https://fbref.com/en/comps/Big5/defense/squads/Big-5-European-Leagues-Stats']
@@ -121,6 +130,7 @@ def get_defensive_style():
             columns = t_header.find_all('th')
             columns_info = [column.get('aria-label', None) for column in columns]
             table_header = [column.get_text(strip=True) for column in columns]
+            table_header.append('season')
             extracted_data.append(table_header)
             # make a dictionary of data names and column info
             defensive_schema = {name: info for name, info in zip(table_header, columns_info)}
@@ -147,6 +157,7 @@ def get_defensive_style():
                 for stat in stats:
                     # handling Na values
                     data.append('Na' if stat.text == '' else stat.text)
+                    data.append(season)
                 extracted_data.append(data)
 
             # store the table in csv
