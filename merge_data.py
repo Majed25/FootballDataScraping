@@ -1,197 +1,92 @@
 import glob
+import pandas as pd
 import csv
 import os
 import json
 import shutil
+import logging
+
+
 
 # Script to Merge the separate data tables into one file.
 
+def load_params():
+    with open('/Users/macbookpro/PycharmProjects/FootballDataScraping/parameters.json', 'r') as f:
+        params = json.load(f)
+    return params
 
-file_paths = glob.glob('temp_data/*.csv')
-schema_paths = glob.glob('temp_data/*.json')
 
 
-def merge_shooting_data():
-    path1 = 'shooting_data/sd_17_24.csv'
-    path2 = 'shooting_data/sd_09_10.csv'
-    schema_path1 = 'shooting_data/sd_17_24_schema.json'
-    schema_path2 = 'shooting_data/sd_09_10_schema.json'
-    for path in [path1, path2, schema_path1, schema_path2]:
+def ensure_directories(paths):
+    for path in paths:
+        logging.info(f'crating paths: {path}')
         directory = os.path.dirname(path)
         os.makedirs(directory, exist_ok=True)
 
+def write_data(params, csv_path, schema_path):
+    file_paths = glob.glob(f'{params['data_paths']['temp_data']}*.csv')
+    schema_paths = glob.glob(f'{params['data_paths']['temp_data']}*.json')
+
     # initiate a tracker to avoid adding headers multiple times
-    i, j = (0, 0)
-    # open two files for each data tranche
-    with open(path1, 'a', newline='') as d1, open(path2, 'a', newline='') as d2:
-        csv_writer1 = csv.writer(d1)
-        csv_writer2 = csv.writer(d2)
+    data_frames = []
+    for file in file_paths:
+        df = pd.read_csv(file)
+        data_frames.append(df)
+    concatenated_df = pd.concat(data_frames, ignore_index=True, sort=False)
+    logging.info(f'concatenated data frame: {concatenated_df.head()}')
+    concatenated_df.to_csv(csv_path, index=False)
 
-        for file in file_paths:
-            with open(file, 'r') as f:
-                csv_reader = csv.reader(f)
-                header = next(csv_reader, [])
-                header_len = len(header)
-                print(header_len)
-                if header_len == 27:
-                    print(header)
-                    if i == 0:
-                        csv_writer1.writerow(header)
-                    for row in csv_reader:
-                        if len(row) != len(header):
-                            print('error')
-                        else:
-                            csv_writer1.writerow(row)
-                    i += 1
-
-                else:
-                    print(header)
-                    if j == 0:
-                        csv_writer2.writerow(header)
-                    for row in csv_reader:
-                        if len(row) != len(header):
-                            print('error')
-                        else:
-                            csv_writer2.writerow(row)
-                    j += 1
-    # merge schemas
-    is_schema_1 = False
-    is_schema_2 = False
+    """Find the schema with the most fields and save it."""
+    schema = {}
     for path in schema_paths:
-        with open(path, 'r') as json_file:
-            dict = json.load(json_file)
-            if len(dict.keys()) == 27:
-                if  not is_schema_1:
-                    with open(schema_path1, 'w', newline='') as json_file:
-                        json.dump(dict, json_file, indent=2)
-                        is_schema_1 = True
-            elif len(dict.keys()) == 21:
-                if not is_schema_2:
-                    with open(schema_path2, 'w', newline='') as json_file:
-                        json.dump(dict, json_file, indent=2)
-                        is_schema_1 = True
-            else:
-                print(f'inconsistent schema {dict}')
+        with open(path, 'r') as file:
+            current_schema = json.load(file)
+        if len(current_schema) > len(schema):
+            schema = current_schema
+    with open(schema_path, 'w', newline='') as json_file:
+        json.dump(schema, json_file, indent=2)
 
+def clear_temp_data(params):
     # clear temp data
-    shutil.rmtree('temp_data/')
-    os.makedirs('temp_data/')
+    shutil.rmtree(f'{params['data_paths']['temp_data']}')
+    os.makedirs(f'{params['data_paths']['temp_data']}')
 
 
-def merge_defensive_data():
-    my_path = 'defensive_data/dd_2009_2024.csv'
-    schema_path = 'defensive_data/dd_2009_2024_schema.json'
-    for p in [my_path, schema_path]:
-        directory = os.path.dirname(p)
-        os.makedirs(directory, exist_ok=True)
+def merge_data(params):
+    data = params['data_paths']['shoot_data']['csv']
+    schema = params['data_paths']['shoot_data']['schema']
+    logging.info(f'data path: {data}')
+    logging.info(f'schema path: {schema}')
+    ensure_directories([data, schema])
+    write_data(params, data, schema)
+    clear_temp_data(params)
 
-    # initiate a tracker to avoid adding headers multiple times
-    i = 0
-    with open(my_path, 'a', newline='') as d:
-        csv_writer = csv.writer(d)
-        for file in file_paths:
-            with open(file, 'r') as f:
-                csv_reader = csv.reader(f)
-                header = next(csv_reader, [])
-                header_len = len(header)
-                if i == 0:
-                    csv_writer.writerow(header)
-                for row in csv_reader:
-                    if len(row) != len(header):
-                        print('error')
-                    else:
-                        csv_writer.writerow(row)
-                i += 1
 
-    # merge schemas
-    with open(schema_paths[0], 'r') as json_file:
-        dict = json.load(json_file)
-        with open(schema_path, 'w', newline='') as json_file:
-            json.dump(dict, json_file, indent=2)
+def merge_defensive_data(params):
+    data = params['def_data']['csv']
+    schema = params['def_data']['schema']
 
-    # clear temp data
-    shutil.rmtree('temp_data/')
-    os.makedirs('temp_data/')
+    ensure_directories([data, schema])
+    write_data(params, data, schema)
+    clear_temp_data(params)
+
+
+
+
 
 # merge opposition passes data
-def merge_opp_pass_data():
-    my_path = 'opp_pass_data/opd_2009_2024.csv'
-    schema_path = 'opp_pass_data/opd_2009_2024_schema.json'
-    for p in [my_path, schema_path]:
-        directory = os.path.dirname(p)
-        os.makedirs(directory, exist_ok=True)
+def merge_opp_pass_data(params):
+    data = params['data_paths']['op_pass_data']['csv']
+    schema = params['data_paths']['op_pass_data']['schema']
 
-    # initiate a tracker to avoid adding headers multiple times
-    i = 0
-    with open(my_path, 'a', newline='') as d:
-        csv_writer = csv.writer(d)
-        for file in file_paths:
-            with open(file, 'r') as f:
-                csv_reader = csv.reader(f)
-                header = next(csv_reader, [])
-                header_len = len(header)
-                if i == 0:
-                    csv_writer.writerow(header)
-                for row in csv_reader:
-                    if len(row) != len(header):
-                        print('error')
-                    else:
-                        csv_writer.writerow(row)
-                i += 1
-
-    # merge schemas
-    with open(schema_paths[0], 'r') as json_file:
-        dict = json.load(json_file)
-        with open(schema_path, 'w', newline='') as json_file:
-            json.dump(dict, json_file, indent=2)
-
-    # clear temp data
-    shutil.rmtree('temp_data/')
-    os.makedirs('temp_data/')
+    ensure_directories([data, schema])
+    write_data(params, data, schema)
+    clear_temp_data(params)
 
 
 # merge transfers_ data
-def merge_transfers_data():
-    if are_headers_similar():
-        path = 'transfers_data/trd_2009_2024.csv'
-        directory = os.path.dirname(path)
-        os.makedirs(directory, exist_ok=True)
-
-        # initiate a tracker to avoid adding headers multiple times
-        i = 0
-        with open(path, 'a', newline='') as d:
-            csv_writer = csv.writer(d)
-            for file in file_paths:
-                with open(file, 'r') as f:
-                    csv_reader = csv.reader(f)
-                    header = next(csv_reader, [])
-                    header_len = len(header)
-                    if i == 0:
-                        csv_writer.writerow(header)
-                    for row in csv_reader:
-                        if len(row) != len(header):
-                            print('error')
-                        else:
-                            csv_writer.writerow(row)
-                    i += 1
-
-        # clear temp data
-        shutil.rmtree('temp_data/')
-        os.makedirs('temp_data/')
-
-
-def are_headers_similar():
-    #get headers
-    headers = []
-    for f in file_paths:
-        with open(f, 'r', newline='') as csvfile:
-            reader = csv.reader(csvfile)
-            #read the first row which is the header
-            header = next(reader)
-            headers.append(header)
-    # compare headers
-    result = True
-    for header in headers[1:]:
-        if header != headers[0]:
-            result = False
-    return result
+def merge_transfers_data(params):
+    data = params['data_paths']['tfr_data']['csv']
+    ensure_directories([data])
+    write_data(params, data, None)
+    clear_temp_data(params)

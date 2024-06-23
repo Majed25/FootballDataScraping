@@ -3,41 +3,40 @@ import requests
 import time
 import csv
 import re
+import json
+import random
+import sys
+import logging
 
-HEADERS = {
-    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-    'accept-encoding': 'gzip, deflate, br, zstd',
-    'accept-language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-    'upgrade-insecure-requests': '1',
-    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-}
-
-LEAGUES = {'laliga': 'ES1',
-           'bundesliga': 'L1',
-           'serie-a': 'IT1',
-           'premier-league': 'GB1',
-           'ligue-1': 'FR1'
-           }
-SEASONS = [yr for yr in range(2009, 2024)]
-URLS = []
-for league, lg in LEAGUES.items():
-    for season in SEASONS:
-        url = f'https://www.transfermarkt.com/{league}/transfers/wettbewerb/{lg}/plus/?saison_id={season}&s_w=&leihe=1&intern=0&intern=1'
-        URLS.append(url)
+def generate_tfr_urls(params, start_yr):
+    if start_yr == None:
+        start_yr = params['url_params']['year']- 1
+    end_yr = params['transfers']['seasons_range']['end_yr']
+    seasons = [yr for yr in range(start_yr, end_yr)]
+    leagues = params['transfers']['leagues']
+    urls = []
+    for league, lg in leagues.items():
+        for season in seasons:
+            url = params['url_params']['transfers_urls'].format(league=league, lg=lg, season=season)
+            urls.append(url)
+    return urls
 
 
-def scrape_transfers():
-    session = requests.session()
-    session.headers.update(HEADERS)
+def scrape_transfers(params, start_yr=None):
     # Scrape Each URL
-    for url in URLS:
-        print(f'scraping {url}')
-        html_content = requests.get(url)
+    req_headers = {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.106 Safari/537.36 OPR/38.0.2220.41"
+    }
+
+    urls = generate_tfr_urls(start_yr)
+    logging.info('Generate urls')
+    for url in urls[:1]:
+        logging.info(f'scraping {url}')
+        html_content = requests.get(url,headers=req_headers)
         season = re.findall(r'\d{4}', url)[0]
         league = re.findall(r'\.com/([^/]+)/transfers', url)[0]
-
         if html_content.status_code == 200:
-            print('Success')
+            logging.info(f'Success: table data {url}')
             soup = BeautifulSoup(html_content.text, 'html.parser')
             team_tags_html = soup.find_all('h2', class_="content-box-headline content-box-headline--inverted content-box-headline--logo")
             team_names = []
@@ -52,7 +51,7 @@ def scrape_transfers():
             soup = BeautifulSoup(str(tables), 'html.parser')
             target_tables = soup.find_all('table')
             # open csv file
-            csv_file_path = f'temp_data/{league}_{season}_team_transfer.csv'
+            csv_file_path = f'{params['temp_data']}/{league}_{season}_team_transfer.csv'
             with open(csv_file_path, 'w', newline='', encoding='utf-8') as csv_file:
 
                 # Create a CSV writer object
@@ -83,10 +82,12 @@ def scrape_transfers():
                         csv_writer.writerow(data)
 
         else:
-            print(html_content.status_code)
+            logging.error(f'error fetching data {html_content.status_code}')
 
-        time.sleep(15)
-
-
+        time.sleep(5)
 
 
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == 'scrape_transfers':
+        scrape_transfers()

@@ -5,6 +5,7 @@ import time
 import csv
 import json
 import re
+import logging
 
 # Strikers finishing
 # 2023-2024 Big 5 European Leagues Defensive Action Stats
@@ -13,33 +14,73 @@ import re
 # URls Collection for Shooting data
 # transfer market data https://www.transfermarkt.com/premier-league/transfers/wettbewerb/GB1/plus/?saison_id=2023&s_w=&leihe=1&intern=0
 
+# loading parameters
+def load_params():
+    with open('/scraping/parameters.json', 'r') as f:
+        params = json.load(f)
+    return params
 
-def get_shooting_data():
-    cur_yr = 2024
-    urls = ["https://fbref.com/en/comps/Big5/shooting/players/Big-5-European-Leagues-Stats"]
-    for i in range(14):
+def generate_urls(base_url, url_template, cur_yr, szns_count):
+    urls = [base_url]
+    for i in range(szns_count):
         prvy = cur_yr - 1
         pprvy = cur_yr - 2
         cur_yr = prvy
-        url = f"https://fbref.com/en/comps/Big5/{pprvy}-{prvy}/shooting/players/"\
-            f"{pprvy}-{prvy}-Big-5-European-Leagues-Stats"
+        url = url_template.format(pprvy=pprvy, prvy=prvy)
         urls.append(url)
+    return urls
+def get_szn(cur_yr, url):
+    pattern = re.search(r'/(\d{4}-\d{4})/', url)
+    if pattern:
+        season = pattern.group(1)[:4]
+    else:
+        season = cur_yr
+    return season
+
+
+def store_data(data_paths, schema_paths, table_header, extracted_data, schema):
+    for path in [data_paths, schema_paths]:
+        directory = os.path.dirname(path)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+    # create shooting_data.csv
+    with open(data_paths, 'w', newline='') as csvfile:
+        # Create a CSV writer
+        csvwriter = csv.writer(csvfile)
+        # Write the header
+        logging.debug(f'length of header: {len(table_header)}')
+        csvwriter.writerow(table_header)
+        # Write the data
+        for row in extracted_data:
+            if len(row) != len(table_header):
+                logging.error('lengths dont match len(row) len(header)', len(row), len(table_header))
+                break
+            else:
+                csvwriter.writerow(row)
+    # store schema
+    with open(schema_paths, 'w', newline='') as json_file:
+        json.dump(schema, json_file, indent=2)
+
+
+def get_shooting_data(params, szns_count=0):
+    # leave seasons param as 0 to get only the current season
+    base_url = params['url_params']['shooting_urls']['base']
+    url_template = params['url_params']['shooting_urls']['urls']
+    cur_yr = params['url_params']['year']
+
+    # generate urls
+    urls = generate_urls(base_url, url_template, cur_yr,szns_count)
 
     # extract the tables
-    i = 0
     for url in urls:
         extracted_data = []
         response = requests.get(url)
         if response.status_code == 200:
-            # store the season pattern
-            pattern = re.search(r'/(\d{4}-\d{4})/', url)
-            if pattern:
-                season = pattern.group(1)[-4:]
-            else:
-                season = '2024'
+            season = get_szn(cur_yr, url)
             soup = BeautifulSoup(response.content, 'html.parser')
+            table_id = params['table_ids']['shooting']
             # Extract the  Header
-            table = soup.find('table', {'id': 'stats_shooting'})
+            table = soup.find('table', {'id': table_id})
             # The header that contains the data column names
             t_header = table.find('thead').find_all('tr')[1]
             columns = t_header.find_all('th')
@@ -48,11 +89,11 @@ def get_shooting_data():
             table_header = [column.get_text(strip=True) for column in columns]
             table_header.append('season')
             # make a dictionary of data names and column info
-            shooting_schema = {name: info for name, info in zip(table_header, columns_info)}
-            print(f'scraping  {url}')
+            schema = {name: info for name, info in zip(table_header, columns_info)}
+            logging.info(f'scraping  {url}')
 
             # extract the table body
-            table = soup.find('table', {'id': 'stats_shooting'})
+            table = soup.find('table', {'id': table_id})
             table_body = table.find('tbody')
             # exclude the header rows
             rows_to_exclude = table_body.find_all('tr', class_='thead rowSum')
@@ -69,78 +110,41 @@ def get_shooting_data():
                     data.append('Na' if stat.text == '' else stat.text)
                 data.append(season)
                 extracted_data.append(data)
-            print(extracted_data)
 
             # store data
-            file_path = f'temp_data/shooting_data{i}.csv'
-            directory = os.path.dirname(file_path)
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-            # create shooting_data.csv
-            with open(file_path, 'w', newline='') as csvfile:
-                # Create a CSV writer
-                csvwriter = csv.writer(csvfile)
-                # Write the header
-                print(len(table_header))
-                csvwriter.writerow(table_header)
-                # Write the data
-                for row in extracted_data[:2]:
-                    if len(row) != len(table_header):
-                        print('lengths dont match len(row) len(header)', len(row), len(table_header))
-                        break
-                    else:
-                        csvwriter.writerow(row)
-                print(f'Success: Your shooting data is under {file_path}')
-            # store schema
-            file_path = f'temp_data/shooting_schema{i}.json'
-            with open(file_path, 'w', newline='') as json_file:
-                json.dump(shooting_schema, json_file, indent=2)
-
-            i += 1
-            time.sleep(10)
-
+            data_paths = params['data_paths']['temp_shoot_data'].format(season=season)
+            schema_paths = params['data_paths']['temp_shoot_schema'].format(season=season)
+            store_data(data_paths, schema_paths, table_header, extracted_data, schema)
+            time.sleep(5)
         else:
-            print(f'Failed to retrieve the web page for URL: {url}')
+            logging.error(f'Failed to retrieve the web page for URL: {url}')
 
-def get_defensive_style():
-    urls = ['https://fbref.com/en/comps/Big5/defense/squads/Big-5-European-Leagues-Stats']
-    cur_yr = 2024
-    for i in range(14):
-        prvy = cur_yr - 1
-        pprvy = cur_yr - 2
-        cur_yr = prvy
-        url = f'https://fbref.com/en/comps/Big5/{pprvy}-{prvy}/defense/squads/'\
-              f'{pprvy}-{prvy}-Big-5-European-Leagues-Stats'
-        urls.append(url)
+def get_defensive_style(params, seasons=0):
+    # leave seasons param as 0 to get only the current season
+    base_url = params['url_params']['defensive_urls']['base']
+    url_template = params['url_params']['defensive_urls']['urls']
+    cur_yr = params['url_params']['year']
+
+    urls = generate_urls(base_url, url_template, cur_yr, seasons)
     for url in urls:
-        # store the season pattern
-        pattern = re.search(r'/(\d{4}-\d{4})/', url)
-        if pattern:
-            season = pattern.group(1)
-        else:
-            season = '2023-2024'
+        season = get_szn(cur_yr, url)
         response = requests.get(url)
         extracted_data = []
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, 'html.parser')
+            table_id = params['table_ids']['defensive']
             # Extract the  Header
-            table = soup.find('table', {'id': 'stats_teams_defense_for'})
+            table = soup.find('table', {'id': table_id})
             # The header that contains the data column names
             t_header = table.find('thead').find_all('tr')[1]
             columns = t_header.find_all('th')
             columns_info = [column.get('aria-label', None) for column in columns]
+            columns_info.append('season')
             table_header = [column.get_text(strip=True) for column in columns]
             table_header.append('season')
             extracted_data.append(table_header)
             # make a dictionary of data names and column info
-            defensive_schema = {name: info for name, info in zip(table_header, columns_info)}
-            # store schema
-            file_path = f'temp_data/defensive_schema{season}.json'
-            directory = os.path.dirname(file_path)
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-            with open(file_path, 'w', newline='') as json_file:
-                json.dump(defensive_schema, json_file, indent=2)
+            schema = {name: info for name, info in zip(table_header, columns_info)}
 
             # extract the table body
             table_body = table.find('tbody')
@@ -157,69 +161,43 @@ def get_defensive_style():
                 for stat in stats:
                     # handling Na values
                     data.append('Na' if stat.text == '' else stat.text)
-                    data.append(season)
+                data.append(season)
                 extracted_data.append(data)
 
             # store the table in csv
-            file_path = f'temp_data/defensive_data{season}.csv'
-            directory = os.path.dirname(file_path)
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-            # create shooting_data.csv
-            with open(file_path, 'w', newline='') as csvfile:
-                # Create a CSV writer
-                csvwriter = csv.writer(csvfile)
-                # write data
-                for row in extracted_data:
-                    if len(row) != len(table_header):
-                        print('lengths dont match len(row) len(header)', len(row), len(table_header))
-                        break
-                    else:
-                        csvwriter.writerow(row)
-                print(f'Success: Your shooting data is under {file_path}')
-            time.sleep(10)
+            data_paths = params['data_paths']['temp_def_data'].format(season=season)
+            schema_paths = params['data_paths']['temp_def_schema'].format(season=season)
+            store_data(data_paths, schema_paths,table_header, extracted_data, schema)
+            time.sleep(5)
 
         else:
-            print(f'Error fetching table from {url}')
+            logging.error(f'Error fetching table from {url}')
 
-def get_opponent_passing():
-    urls = ['https://fbref.com/en/comps/Big5/passing/squads/Big-5-European-Leagues-Stats']
-    cur_yr = 2024
-    for i in range(14):
-        prvy = cur_yr - 1
-        pprvy = cur_yr - 2
-        cur_yr = prvy
-        url = f'https://fbref.com/en/comps/Big5/{pprvy}-{prvy}/passing/squads/'\
-              f'{pprvy}-{prvy}-Big-5-European-Leagues-Stats'
-        urls.append(url)
+def get_opponent_passing(params, seasons=0):
+    # leave seasons param as 0 to get only the current season
+    base_url = params['url_params']['passing_urls']['opp_passing_urls']['base']
+    url_template = params['url_params']['passing_urls']['opp_passing_urls']['urls']
+    cur_yr = params['url_params']['year']
+    urls = generate_urls(base_url, url_template, cur_yr, seasons)
     for url in urls:
-        # store the season pattern
-        pattern = re.search(r'/(\d{4}-\d{4})/', url)
-        if pattern:
-            season = pattern.group(1)
-        else:
-            season = '2023-2024'
+        season = get_szn(cur_yr,  url)
         response = requests.get(url)
         extracted_data = []
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, 'html.parser')
+            table_id = params['table_ids']['op_passing']
             # Extract the  Header
-            table = soup.find('table', {'id': 'stats_teams_passing_against'})
+            table = soup.find('table', {'id': table_id})
             # The header that contains the data column names
             t_header = table.find('thead').find_all('tr')[1]
             columns = t_header.find_all('th')
             columns_info = [column.get('aria-label', None) for column in columns]
+            columns_info.append(season)
             table_header = [column.get_text(strip=True) for column in columns]
+            table_header.append(season)
             extracted_data.append(table_header)
             # make a dictionary of data names and column info
-            defensive_schema = {name: info for name, info in zip(table_header, columns_info)}
-            # store schema
-            file_path = f'temp_data/opp_pass_schema{season}.json'
-            directory = os.path.dirname(file_path)
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-            with open(file_path, 'w', newline='') as json_file:
-                json.dump(defensive_schema, json_file, indent=2)
+            schema = {name: info for name, info in zip(table_header, columns_info)}
 
             # extract the table body
             table_body = table.find('tbody')
@@ -236,29 +214,17 @@ def get_opponent_passing():
                 for stat in stats:
                     # handling Na values
                     data.append('Na' if stat.text == '' else stat.text)
+                data.append(season)
                 extracted_data.append(data)
 
             # store the table in csv
-            file_path = f'temp_data/opp_pass_data{season}.csv'
-            directory = os.path.dirname(file_path)
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-            # create shooting_data.csv
-            with open(file_path, 'w', newline='') as csvfile:
-                # Create a CSV writer
-                csvwriter = csv.writer(csvfile)
-                # write data
-                for row in extracted_data:
-                    if len(row) != len(table_header):
-                        print('lengths dont match len(row) len(header)', len(row), len(table_header))
-                        break
-                    else:
-                        csvwriter.writerow(row)
-                print(f'Success: Your shooting data is under {file_path}')
+            opp_pass_data_paths = params['data_paths']['temp_opp_data'].format(season=season)
+            opp_pass_schema_paths = params['data_paths']['temp_opp_schema'].format(season=season)
+            store_data(opp_pass_data_paths, opp_pass_schema_paths, table_header, extracted_data, schema)
             time.sleep(5)
 
         else:
-            print(f'Error fetching table from {url}')
+            logging.error(f'Error fetching table from {url}')
 
 
 
